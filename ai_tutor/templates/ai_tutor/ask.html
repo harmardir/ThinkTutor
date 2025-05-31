@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ThinkTutor – Ask AI</title>
+</head>
+<body>
+    <h2>Ask the AI Tutor</h2>
+    <form id="ask-form" method="post">
+        {% csrf_token %}
+        <input type="text" name="question" placeholder="Ask a question..." required>
+        <button type="submit">Ask</button>
+    </form>
+    <div id="response"></div>
+
+    <script>
+        document.getElementById("ask-form").onsubmit = async function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const response = await fetch("", {
+                method: "POST",
+                body: formData,
+                headers: {'X-CSRFToken': formData.get("csrfmiddlewaretoken")}
+            });
+            const data = await response.json();
+            document.getElementById("response").innerText = data.answer;
+        };
+    </script>
+</body>
+</html>
