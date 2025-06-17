@@ -5,26 +5,77 @@
 </head>
 <body>
     <h2>Ask the AI Tutor</h2>
+
     <form id="ask-form" method="post">
         {% csrf_token %}
-        <input type="text" name="question" placeholder="Ask a question..." required>
+        <input type="text" id="question" name="question" placeholder="Ask a question..." required>
         <button type="submit">Ask</button>
     </form>
+
+    <p id="status"></p>
     <div id="response"></div>
 
     <script>
-        document.getElementById("ask-form").onsubmit = async function(e) {
+        const form = document.getElementById('ask-form');
+        const questionInput = document.getElementById('question');
+        const answerBox = document.getElementById('response');
+        const statusBox = document.getElementById('status');
+        const offlineQueueKey = "thinkTutorOfflineQueue";
+
+        form.onsubmit = async function(e) {
             e.preventDefault();
-            const form = e.target;
-            const formData = new FormData(form);
-            const response = await fetch("", {
-                method: "POST",
-                body: formData,
-                headers: {'X-CSRFToken': formData.get("csrfmiddlewaretoken")}
-            });
-            const data = await response.json();
-            document.getElementById("response").innerText = data.answer;
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            if (navigator.onLine) {
+                await sendToServer(question);
+            } else {
+                saveOffline(question);
+                statusBox.innerText = "❌ You are offline. Question saved and will sync later.";
+                form.reset();
+            }
         };
+
+        function saveOffline(question) {
+            const queue = JSON.parse(localStorage.getItem(offlineQueueKey)) || [];
+            queue.push({ question });
+            localStorage.setItem(offlineQueueKey, JSON.stringify(queue));
+        }
+
+        window.addEventListener('online', syncOfflineQueue);
+        window.addEventListener('load', syncOfflineQueue);
+
+        async function syncOfflineQueue() {
+            const queue = JSON.parse(localStorage.getItem(offlineQueueKey)) || [];
+            if (queue.length === 0) return;
+
+            statusBox.innerText = "🔄 Syncing queued questions...";
+            for (let item of queue) {
+                await sendToServer(item.question);
+            }
+            localStorage.removeItem(offlineQueueKey);
+            statusBox.innerText = "✅ Synced all offline questions!";
+        }
+
+        async function sendToServer(question) {
+            const formData = new FormData();
+            formData.append("question", question);
+            formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+            try {
+                const response = await fetch("", {
+                    method: "POST",
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': formData.get("csrfmiddlewaretoken")
+                    }
+                });
+                const data = await response.json();
+                answerBox.innerText = data.answer;
+            } catch (err) {
+                statusBox.innerText = "⚠️ Failed to contact server.";
+            }
+        }
     </script>
 </body>
 </html>
