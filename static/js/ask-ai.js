@@ -6,9 +6,100 @@ window.addEventListener("DOMContentLoaded", () => {
   const connectionStatus = document.getElementById("connection-status");
   const notification = document.getElementById('online-notification');
   const sound = document.getElementById('notify-sound');
- 
+
+  // Metrics DOM elements
+  const offlineQuestionsEl = document.getElementById("offline-questions");
+  const syncedQuestionsEl = document.getElementById("synced-questions");
+  const connectionTimeEl = document.getElementById("connection-time");
+  const avgResponseTimeEl = document.getElementById("avg-response-time");
+  const resetMetricsBtn = document.getElementById("reset-metrics");
+
+  // Metrics variables
+  let offlineQuestions = 0;
+  let syncedQuestions = 0;
+  let connectionSeconds = 0;
+  let responseTimes = [];  // Array to track each response duration
+  let connectionTimerInterval = null;
 
   let loadingBubble = null; // Placeholder for "loading" bubble
+  let questionStartTime = null; // Track when question request started (for response time)
+
+  // Load saved metrics from localStorage (if any)
+  function loadMetrics() {
+    offlineQuestions = parseInt(localStorage.getItem("metricsOfflineQuestions")) || 0;
+    syncedQuestions = parseInt(localStorage.getItem("metricsSyncedQuestions")) || 0;
+    connectionSeconds = parseInt(localStorage.getItem("metricsConnectionSeconds")) || 0;
+    const savedResponseTimes = JSON.parse(localStorage.getItem("metricsResponseTimes"));
+    responseTimes = savedResponseTimes || [];
+  }
+
+  // Save metrics to localStorage
+  function saveMetrics() {
+    localStorage.setItem("metricsOfflineQuestions", offlineQuestions);
+    localStorage.setItem("metricsSyncedQuestions", syncedQuestions);
+    localStorage.setItem("metricsConnectionSeconds", connectionSeconds);
+    localStorage.setItem("metricsResponseTimes", JSON.stringify(responseTimes));
+  }
+
+  // Update metrics panel UI
+  function updateMetricsUI() {
+    offlineQuestionsEl.textContent = `Offline questions asked: ${offlineQuestions}`;
+    syncedQuestionsEl.textContent = `Questions synced successfully: ${syncedQuestions}`;
+    connectionTimeEl.textContent = `Time connected: ${connectionSeconds} seconds`;
+
+    // Calculate average response time in ms
+    if (responseTimes.length > 0) {
+      const avg = Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length);
+      avgResponseTimeEl.textContent = `Average response time: ${avg} ms`;
+    } else {
+      avgResponseTimeEl.textContent = `Average response time: 0 ms`;
+    }
+  }
+
+  // Increment offline questions count and update UI & storage
+  function incrementOfflineCount() {
+    offlineQuestions++;
+    saveMetrics();
+    updateMetricsUI();
+  }
+
+  // Increment synced questions count and update UI & storage
+  function incrementSyncedCount() {
+    syncedQuestions++;
+    saveMetrics();
+    updateMetricsUI();
+  }
+
+  // Add response time (ms) and update UI & storage
+  function addResponseTime(durationMs) {
+    responseTimes.push(durationMs);
+    saveMetrics();
+    updateMetricsUI();
+  }
+
+  // Start connection timer to count connected seconds
+  function startConnectionTimer() {
+    if (connectionTimerInterval) return; // Already running
+    connectionTimerInterval = setInterval(() => {
+      if (navigator.onLine) {
+        connectionSeconds++;
+        saveMetrics();
+        updateMetricsUI();
+      }
+    }, 1000);
+  }
+
+  // Reset all metrics and update UI/storage
+  function resetMetrics() {
+    offlineQuestions = 0;
+    syncedQuestions = 0;
+    connectionSeconds = 0;
+    responseTimes = [];
+    saveMetrics();
+    updateMetricsUI();
+  }
+
+  resetMetricsBtn.addEventListener("click", resetMetrics);
 
   // -------------------------
   // Utility: Get network connection info
@@ -68,6 +159,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // -------------------------
   function showLoadingBubble() {
     loadingBubble = addChatBubble("ai", "...");
+    questionStartTime = performance.now(); // Start timing here
   }
 
   // -------------------------
@@ -77,6 +169,11 @@ window.addEventListener("DOMContentLoaded", () => {
     if (loadingBubble) {
       const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       loadingBubble.innerHTML = `<span>${answerText}</span><br><small style="font-size: 0.7em; color: gray;">${timestamp}</small>`;
+
+      // Calculate response time and record it
+      const duration = performance.now() - questionStartTime;
+      addResponseTime(Math.round(duration));
+
       loadingBubble = null;
 
       // Save after updating loading bubble
@@ -92,6 +189,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const timestamp = new Date().toISOString();
     queue.push({ question, csrfToken, timestamp });
     localStorage.setItem("offlineQueue", JSON.stringify(queue));
+    incrementOfflineCount();  // Track offline question count
   }
 
   // -------------------------
@@ -112,6 +210,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       updateLoadingBubble(data.answer);
       addChatBubble("system", "Answer delivered via edge node.");
+      incrementSyncedCount();  // Track successful sync
     } catch (err) {
       updateLoadingBubble("Error during sync. Question re-queued.");
       queueQuestion(question, csrfToken);
@@ -142,6 +241,13 @@ window.addEventListener("DOMContentLoaded", () => {
     chatLog.innerHTML = savedChat;
     chatLog.scrollTop = chatLog.scrollHeight;
   }
+
+  // Load saved metrics and update UI immediately
+  loadMetrics();
+  updateMetricsUI();
+
+  // Start counting connection time
+  startConnectionTimer();
 
   // -------------------------
   // Handle form submission (ask question)
@@ -180,6 +286,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
       updateLoadingBubble(data.answer);
       addChatBubble("system", "Answer delivered via edge node.");
+      incrementSyncedCount();  // Track successful online question sync
     } catch (error) {
       updateLoadingBubble("Network error. Question queued.");
       queueQuestion(question, csrfToken);
@@ -193,6 +300,7 @@ window.addEventListener("DOMContentLoaded", () => {
     chatLog.innerHTML = "";
     localStorage.removeItem("chatHistory");
     localStorage.removeItem("offlineQueue");
+    resetMetrics(); // Also reset metrics on chat clear for clean slate
   });
 
   // -------------------------
@@ -221,5 +329,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const conn = navigator.connection;
   if (conn) conn.addEventListener("change", updateConnectionStatus);
+});
 
+// -------------------------
+// Metrics panel toggle functionality
+const metricsBtn = document.getElementById('metrics-toggle-btn');
+const metricsPanel = document.getElementById('metrics-panel');
+
+metricsBtn.addEventListener('click', () => {
+  const isOpen = metricsPanel.classList.toggle('open');
+  metricsPanel.setAttribute('aria-hidden', !isOpen);
+   metricsBtn.setAttribute('aria-pressed', isOpen);
 });
