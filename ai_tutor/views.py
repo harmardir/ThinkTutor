@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from .bedrock_client import BedrockClient
+from django.contrib.auth.decorators import login_required
 
 
 '''
@@ -17,6 +18,8 @@ def ask_ai(request):
 bedrock_client = BedrockClient(region_name='eu-central-1')
 MODEL_ID = "amazon.titan-text-express-v1"  # Or another model you confirmed is available
 
+
+@login_required
 def ask_ai(request):
     if request.method == "POST":
         question = request.POST.get("question", "")

@@ -70,7 +70,26 @@
 </head>
 <body>
 <div class="container chat-container">
+
+    <!-- User dropdown menu -->
+<div class="user-menu dropdown" style="position: absolute; top: 15px; right: 15px; z-index: 1000;">
+  <button class="btn btn-light dropdown-toggle d-flex align-items-center" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 50px;">
+    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="User Icon" width="28" height="28" class="rounded-circle me-2" />
+    {{ request.user.username }}
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+    
+   <form method="post" action="{% url 'logout' %}" style="display:inline;">
+  {% csrf_token %}
+  <button type="submit" class="dropdown-item">Logout</button>
+</form>
+  </ul>
+</div>
+
     <h2 class="text-center mb-4">ThinkTutor – AI Learning Assistant</h2>
+
+     <div id="connection-status" class="text-muted small mb-2"></div>
+
 
     <div id="chat-log" class="chat-log mb-4"></div>
     <button id="clear-chat" class="btn btn-secondary mb-4">Clear Chat</button>
@@ -81,48 +100,68 @@
         <button type="submit" class="btn btn-primary">Ask</button>
     </form>
 </div>
+
 <script>
     const form = document.getElementById("ask-form");
     const chatLog = document.getElementById("chat-log");
+    const clearChatBtn = document.getElementById("clear-chat");
+    const connectionStatus = document.getElementById("connection-status");
 
+    // Add a loading bubble placeholder
     let loadingBubble = null;
 
-    // Show loading spinner bubble in chat
-    function showLoading() {
-        loadingBubble = document.createElement("div");
-        loadingBubble.className = "chat-bubble ai align-self-start d-flex align-items-center";
-
-        loadingBubble.innerHTML = `
-            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-            <span>AI is thinking...</span>
-        `;
-
-        chatLog.appendChild(loadingBubble);
-        chatLog.scrollTop = chatLog.scrollHeight;
+    // Connection helper
+    function getConnectionInfo() {
+        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (conn) {
+            return {
+                type: conn.effectiveType || 'unknown',
+                downlink: conn.downlink,
+                rtt: conn.rtt
+            };
+        } else {
+            return { type: 'unknown', downlink: 0, rtt: 0 };
+        }
     }
 
-    // Remove loading spinner bubble
-    function hideLoading() {
+    function updateConnectionStatus() {
+        const { type, downlink } = getConnectionInfo();
+        const label = navigator.onLine ? `Connected (${type.toUpperCase()}, ${downlink} Mbps)` : "Offline (Edge mode)";
+        connectionStatus.innerText = `Connection: ${label}`;
+    }
+
+    // Bubble renderer
+    function addChatBubble(type, text, timestampISO = null) {
+        const bubble = document.createElement("div");
+        bubble.className = `chat-bubble ${type}`;
+        
+        const dateObj = timestampISO ? new Date(timestampISO) : new Date();
+        const timestamp = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        if (type === "system") {
+            bubble.innerHTML = `<em>${text}</em><br><small style="font-size: 0.7em; color: gray;">${timestamp}</small>`;
+        } else {
+            bubble.innerHTML = `<span>${text}</span><br><small style="font-size: 0.7em; color: gray;">${timestamp}</small>`;
+        }
+
+        chatLog.appendChild(bubble);
+        chatLog.scrollTop = chatLog.scrollHeight;
+        return bubble;
+    }
+
+    function showLoadingBubble() {
+        loadingBubble = addChatBubble("ai", "...");
+    }
+
+    function updateLoadingBubble(answerText) {
         if (loadingBubble) {
-            chatLog.removeChild(loadingBubble);
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            loadingBubble.innerHTML = `<span>${answerText}</span><br><small style="font-size: 0.7em; color: gray;">${timestamp}</small>`;
             loadingBubble = null;
         }
     }
 
-    // Add a chat bubble with optional timestamp
-    function addChatBubble(type, text, timestampISO = null) {
-        const bubble = document.createElement("div");
-        bubble.className = `chat-bubble ${type}`;
-
-        const dateObj = timestampISO ? new Date(timestampISO) : new Date();
-        const timestamp = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        bubble.innerHTML = `<span>${text}</span><br><small style="font-size: 0.7em; color: gray;">${timestamp}</small>`;
-        chatLog.appendChild(bubble);
-        chatLog.scrollTop = chatLog.scrollHeight;
-    }
-
-    // Queue a question in localStorage with timestamp and csrf token
+    // Offline queue
     function queueQuestion(question, csrfToken) {
         const queue = JSON.parse(localStorage.getItem("offlineQueue") || "[]");
         const timestamp = new Date().toISOString();
@@ -130,33 +169,36 @@
         localStorage.setItem("offlineQueue", JSON.stringify(queue));
     }
 
-    // Send a queued question to the server
     async function sendQuestion(question, csrfToken) {
         const formData = new FormData();
         formData.append("question", question);
         formData.append("csrfmiddlewaretoken", csrfToken);
 
-        const response = await fetch("", {
-            method: "POST",
-            body: formData,
-            headers: { 'X-CSRFToken': csrfToken }
-        });
+        try {
+            const response = await fetch("", {
+                method: "POST",
+                body: formData,
+                headers: { 'X-CSRFToken': csrfToken }
+            });
 
-        const data = await response.json();
-        addChatBubble("ai", data.answer);
+            const data = await response.json();
+            updateLoadingBubble(data.answer);
+            addChatBubble("system", "Answer delivered via edge node.");
+        } catch (err) {
+            updateLoadingBubble("Error during sync. Question re-queued.");
+            queueQuestion(question, csrfToken);
+        }
     }
 
-    // Process all queued questions when online
     async function processQueue() {
         if (!navigator.onLine) return;
 
         const queue = JSON.parse(localStorage.getItem("offlineQueue") || "[]");
-        if (queue.length === 0) return;
-
         localStorage.removeItem("offlineQueue");
 
         for (const item of queue) {
             addChatBubble("user", item.question, item.timestamp);
+            showLoadingBubble();
             await sendQuestion(item.question, item.csrfToken);
         }
     }
@@ -171,13 +213,15 @@
         addChatBubble("user", question, timestamp);
         form.reset();
 
-        if (!navigator.onLine) {
+        const { type } = getConnectionInfo();
+
+        if (!navigator.onLine || type === "2g" || type === "slow-2g") {
             queueQuestion(question, csrfToken);
-            addChatBubble("ai", "You're offline. Your question has been queued.");
+            addChatBubble("ai", "Poor connection. Question queued for edge processing.");
             return;
         }
 
-        showLoading();
+        showLoadingBubble();
 
         try {
             const response = await fetch("", {
@@ -187,25 +231,41 @@
             });
 
             const data = await response.json();
-            addChatBubble("ai", data.answer);
+            updateLoadingBubble(data.answer);
+            addChatBubble("system", "Answer delivered via edge node.");
         } catch (error) {
-            addChatBubble("ai", "Error sending message. It has been queued.");
+            updateLoadingBubble("Network error. Question queued.");
             queueQuestion(question, csrfToken);
-        } finally {
-            hideLoading();
         }
     };
 
-    const clearChatBtn = document.getElementById("clear-chat");
+    // Clear chat + queue
     clearChatBtn.addEventListener("click", () => {
         chatLog.innerHTML = "";
         localStorage.removeItem("offlineQueue");
     });
 
-    // Sync queued questions on page load and when back online
+    // Events
+    window.addEventListener("load", () => {
+        updateConnectionStatus();
+        processQueue();
+    });
+
+    window.addEventListener("online", () => {
+        updateConnectionStatus();
+        processQueue();
+    });
+
+    window.addEventListener("offline", updateConnectionStatus);
+
+    const conn = navigator.connection;
+    if (conn) conn.addEventListener("change", updateConnectionStatus);
+
     window.addEventListener("load", processQueue);
     window.addEventListener("online", processQueue);
 </script>
+    
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 
 </body>
