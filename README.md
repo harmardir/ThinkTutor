@@ -28,6 +28,22 @@
 
 ---
 
+## Screenshots
+
+### 🔹 ThinkTutor Homepage
+![Chat in action](screenshots/homepage.png)
+
+### 🔹 Online Chat Interface
+![Chat in action](screenshots/chat_interface_online.png)
+
+### 🔹 Offline Sync Experience
+![Offline queued questions](screenshots/chat_interface_offline.png)
+
+### 🔹 Login/Register Page
+![Register screen](screenshots/registration_page.png)
+
+---
+
 ## Features
 
 - **AI Tutoring**: Chat interface that leverages AWS Generative AI to answer questions accurately and conversationally.
