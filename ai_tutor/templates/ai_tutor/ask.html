@@ -6,11 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ThinkTutor – Ask AI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
     <style>
         body {
-            background-image: url("{% static 'images/background.png' %}");
-            background-size: cover;
-            background-repeat: no-repeat;
+            background-image: url("{% static 'images/doodle_2.png' %}");
         }
          .chat-container {
             max-width: 700px;
@@ -73,9 +73,9 @@
 }
 #metrics-panel {
   position: fixed;
-  top: 70px; /* below navbar */
+  top: 70px;
   right: 0;
-  width: 250px;
+  width: 300px;
   max-height: 80vh;
   background: white;
   border-left: 1px solid #ccc;
@@ -85,6 +85,7 @@
   transform: translateX(100%);
   transition: transform 0.3s ease;
   z-index: 1040;
+
 }
 
 #metrics-panel.open {
@@ -118,11 +119,10 @@
     right: 0;
     height: 60vh;
     width: 100%;
-    max-height: 60vh;
+    max-height: 30vh;
     border-radius: 15px 15px 0 0;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
     background: white;
-    transform: translateY(100%);
     transition: transform 0.3s ease;
     overflow-y: auto;
     z-index: 1045;
@@ -131,6 +131,47 @@
   #metrics-panel.open {
     transform: translateY(0);
   }
+}
+
+
+#metrics-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.icon-metric,
+.metric-text {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0;
+}
+
+.metric-text {
+  margin-bottom: 8px;
+}
+
+.icon-metric {
+  margin-right: 8px;
+}
+
+#metrics-panel .icon-metric + .metric-text {
+  display: flex;
+  align-items: center;
+}
+
+.metric-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.icon-metric {
+  margin-right: 8px;
+  font-size: 1rem;
+}
+
+.metric-text {
+  margin: 0;
 }
 
     </style>
@@ -142,7 +183,7 @@
 <!-- Navbar -->
 
     <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm sticky-top">
-    <a class="navbar-brand fw-bold text-primary" href="#">ThinkTutor</a>
+    <a class="navbar-brand fw-bold text-primary" href="/">ThinkTutor</a>
     <div class="d-flex align-items-center ms-auto">
       <div class="dropdown">
         <button class="btn btn-outline-primary dropdown-toggle d-flex align-items-center"
@@ -183,10 +224,22 @@
 </button>
 <div id="metrics-panel" aria-hidden="true" role="region" aria-label="Metrics Panel">
   
-  <p id="offline-questions">Offline questions asked: 0</p>
-  <p id="synced-questions">Questions synced successfully: 0</p>
-  <p id="connection-time">Time connected: 0 seconds</p>
-  <p id="avg-response-time">Average response time: 0 ms</p>
+ <div class="metric-row">
+  <i class="fas fa-wifi icon-metric"></i>
+  <p id="offline-questions" class="metric-text">Offline questions asked: 0</p>
+</div>
+<div class="metric-row">
+  <i class="fas fa-check-circle icon-metric"></i>
+  <p id="synced-questions" class="metric-text">Questions synced successfully: 0</p>
+</div>
+<div class="metric-row">
+  <i class="fas fa-stopwatch icon-metric"></i>
+  <p id="connection-time" class="metric-text">Time connected: 0 seconds</p>
+</div>
+<div class="metric-row">
+  <i class="fas fa-bolt icon-metric"></i>
+  <p id="avg-response-time" class="metric-text">Average response time: 0 ms</p>
+</div>
   <button id="reset-metrics" style="margin-top: 5px;">Reset Metrics</button>
 </div>
 
@@ -209,7 +262,7 @@
  <audio id="notify-sound" src="{% static 'sounds/notification.wav' %}" preload="auto"></audio>
  <!-- Footer -->
 <footer class="bg-light text-center text-muted py-3 mt-auto">
-  <small>&copy; {{ now|date:"Y" }} ThinkTutor. Learn. Ask. Explore. Anytime, anywhere.</small>
+  <small>&copy; {% now "Y" %} ThinkTutor. Learn. Ask. Explore. Anytime, anywhere.</small>
 </footer>
 
 

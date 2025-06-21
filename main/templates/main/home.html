@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -41,20 +42,27 @@
   </style>
 </head>
 <body>
-  <div class="container d-flex justify-content-center">
-    <div class="card p-4 p-md-5 text-center">
-      <h1 class="mb-3">Welcome to <span class="text-primary">ThinkTutor</span></h1>
-      <p class="lead text-muted">Your smart study buddy powered by AI. Works even offline!</p>
+ <div class="card p-4 p-md-5 text-center">
+  <img src="{% static 'images/robot-teacher.png' %}" alt="Robot Teacher Assistant" style="max-width: 200px; margin-bottom: 1rem;" class="mx-auto d-block" />
+  <small class="text-muted d-block" style="margin-top: -0.5rem;">Works Offline!</small>
+  
+  <h1 class="mb-3">Welcome to <span class="text-primary">ThinkTutor</span></h1>
+  <p class="lead text-muted">Your smart study buddy powered by AI. Works even offline!</p>
 
-      <div class="d-flex flex-column flex-sm-row justify-content-center mt-4 gap-3">
-        <a href="{% url 'login' %}" class="btn btn-primary btn-lg">Log In</a>
-        <a href="{% url 'register' %}" class="btn btn-outline-primary btn-lg">Register</a>
-      </div>
-
-      <p class="mt-4 text-muted small">
-        Learn. Ask. Explore. Anytime, anywhere.
-      </p>
-    </div>
+ {% if user.is_authenticated %}
+  <div class="d-flex justify-content-center mt-4">
+    <a href="{% url 'ask_ai' %}" class="btn btn-success btn-lg">Ask a Question</a>
   </div>
+{% else %}
+  <div class="d-flex flex-column flex-sm-row justify-content-center mt-4 gap-3">
+    <a href="{% url 'login' %}" class="btn btn-primary btn-lg">Log In</a>
+    <a href="{% url 'register' %}" class="btn btn-outline-primary btn-lg">Register</a>
+  </div>
+{% endif %}
+
+  <p class="mt-4 text-muted small">
+    Learn. Ask. Explore. Anytime, anywhere.
+  </p>
+</div>
 </body>
 </html>

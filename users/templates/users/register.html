@@ -58,14 +58,23 @@
       color: #2c7be5;
       text-decoration: none;
     }
+    
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>Create Your Account</h2>
+    <h2>Create Your ThinkTutor Account</h2>
     <form method="post">
       {% csrf_token %}
-      {{ form.as_p }}
+     {% for field in form %}
+  <div class="form-group">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+    {% if field.errors %}
+      <div class="error">{{ field.errors|striptags }}</div>
+    {% endif %}
+  </div>
+{% endfor %}
       <button type="submit">Register</button>
     </form>
     <div class="link">
