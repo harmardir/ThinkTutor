@@ -272,5 +272,10 @@
 <!-- Your app JS -->
 <script src="{% static 'js/ask-ai.js' %}"></script>
 
+
+<script>
+  const currentUsername = "{{ request.user.username|escapejs }}";
+</script>
+
 </body>
 </html>
